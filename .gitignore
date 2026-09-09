@@ -1,0 +1,34 @@
+# System and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*~
+*.swp
+*.swo
+
+# Packer
+.packer.d/
+packer_cache/
+output-*/
+
+# Virtual machine artifacts
+*.iso
+*.ova
+*.ova.gz
+*.ovf
+*.vdi
+*.vmdk
+*.mf
+
+# Release staging
+release/
+dist/
+
+# Temporary files
+.tmp/
+*.tmp
+
+# Python test caches
+__pycache__/
+*.pyc

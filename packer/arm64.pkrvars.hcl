@@ -1,0 +1,5 @@
+arch         = "arm64"
+chipset      = "armv8"
+nic_type     = "virtio"
+iso_url      = "https://cdimage.ubuntu.com/releases/24.04.4/release/ubuntu-24.04.4-live-server-arm64.iso"
+iso_checksum = "file:https://cdimage.ubuntu.com/releases/24.04.4/release/SHA256SUMS"

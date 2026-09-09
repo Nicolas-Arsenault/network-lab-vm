@@ -1,0 +1,5 @@
+arch         = "amd64"
+chipset      = "ich9"
+nic_type     = "82540EM"
+iso_url      = "https://releases.ubuntu.com/24.04.4/ubuntu-24.04.4-live-server-amd64.iso"
+iso_checksum = "file:https://releases.ubuntu.com/24.04.4/SHA256SUMS"

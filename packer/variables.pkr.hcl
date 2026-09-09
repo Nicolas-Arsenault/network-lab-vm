@@ -1,0 +1,38 @@
+packer {
+  required_version = ">= 1.14.0"
+
+  required_plugins {
+    virtualbox = {
+      version = "= 1.1.5"
+      source  = "github.com/hashicorp/virtualbox"
+    }
+  }
+}
+
+variable "arch" {
+  type = string
+  validation {
+    condition     = contains(["amd64", "arm64"], var.arch)
+    error_message = "L'architecture doit être amd64 ou arm64."
+  }
+}
+
+variable "chipset" {
+  type = string
+}
+
+variable "nic_type" {
+  type = string
+}
+
+variable "iso_url" {
+  type = string
+}
+
+variable "iso_checksum" {
+  type = string
+}
+
+variable "vm_version" {
+  type = string
+}

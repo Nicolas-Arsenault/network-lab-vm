@@ -1,0 +1,21 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  timezone: America/Montreal
+  identity:
+    hostname: log100-lab
+    username: packer
+    password: "$6$log100packer$cWhRYqKGkpNEK1SuCOhUVe3Ex6KI9NL.stjMV2548xdifLgMDLiMJs2yuJMrUNpJRbiQb9e86IJZKi.QUPqwJ."
+  ssh:
+    install-server: true
+    allow-pw: true
+  storage:
+    layout:
+      name: direct
+  packages:
+    - openssh-server
+  late-commands:
+    - curtin in-target --target=/target -- systemctl enable ssh
