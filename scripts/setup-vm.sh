@@ -5,11 +5,51 @@ repo="ets-log100/network-lab-vm"
 vm_name="LOG100 Network Labs"
 ssh_port=2222
 work_dir="${TMPDIR:-/tmp}/log100-network-lab-vm"
+release_version="latest"
 
 fail() {
   echo "ERREUR : $*" >&2
   exit 1
 }
+
+usage() {
+  cat <<'USAGE'
+Usage : setup-vm.sh [--version VERSION]
+
+Options :
+  --version VERSION  Télécharger une release précise, par exemple v0.1.1.
+                     Par défaut, télécharger la dernière release stable.
+  -h, --help         Afficher cette aide.
+USAGE
+}
+
+while (( $# > 0 )); do
+  case "$1" in
+    --version)
+      (( $# >= 2 )) || fail "--version exige une valeur, par exemple v0.1.1."
+      release_version="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      fail "option inconnue : $1"
+      ;;
+  esac
+done
+
+if [[ "$release_version" == "latest" ]]; then
+  base_url="https://github.com/$repo/releases/latest/download"
+  release_label="la dernière release stable"
+else
+  [[ "$release_version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]] || \
+    fail "version invalide : $release_version. Utilisez un tag comme v0.1.1."
+  release_tag="v${release_version#v}"
+  base_url="https://github.com/$repo/releases/download/$release_tag"
+  release_label="$release_tag"
+fi
 
 command -v VBoxManage >/dev/null 2>&1 || fail "VirtualBox n'est pas installé ou VBoxManage n'est pas dans PATH."
 command -v curl >/dev/null 2>&1 || fail "curl est requis."
@@ -34,15 +74,18 @@ if VBoxManage showvminfo "$vm_name" >/dev/null 2>&1; then
 fi
 
 asset="log100-network-lab-vm-$arch.ova.gz"
-base_url="https://github.com/$repo/releases/latest/download"
 mkdir -p "$work_dir"
 archive="$work_dir/$asset"
 checksum="$archive.sha256"
 ova="$work_dir/log100-network-lab-vm-$arch.ova"
 
-echo "INFO : téléchargement de l'appliance $arch"
-curl -fL --retry 3 -o "$archive" "$base_url/$asset"
-curl -fL --retry 3 -o "$checksum" "$base_url/$asset.sha256"
+echo "INFO : téléchargement de l'appliance $arch depuis $release_label"
+if ! curl -fL --retry 3 -o "$archive" "$base_url/$asset"; then
+  fail "impossible de télécharger $asset depuis $release_label. Vérifiez que cette release contient une appliance pour l'architecture $arch."
+fi
+if ! curl -fL --retry 3 -o "$checksum" "$base_url/$asset.sha256"; then
+  fail "impossible de télécharger le SHA-256 de $asset depuis $release_label."
+fi
 
 expected=$(awk '{print $1}' "$checksum")
 if command -v sha256sum >/dev/null 2>&1; then
@@ -68,13 +111,14 @@ fi
 echo "INFO : démarrage de la VM"
 VBoxManage startvm "$vm_name" --type headless
 
-cat <<EOF
+cat <<EOF2
 
 OK : la VM LOG100 est démarrée.
 
+Release : $release_label
 Connexion :
   ssh -p $ssh_port log100@localhost
 
 Mot de passe initial : log100
 La première disponibilité de SSH peut prendre quelques dizaines de secondes.
-EOF
+EOF2

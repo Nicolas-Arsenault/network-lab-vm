@@ -17,20 +17,34 @@ L'installation n'exige pas de connaître l'adresse IP de la VM. SSH est redirig�
 
 ## Linux x86_64 ou macOS Intel
 
-Exécuter :
+Pour installer la dernière release stable :
 
 ```bash
 chmod +x setup-vm.sh
 ./setup-vm.sh
 ```
 
+Pour installer une release précise ou une préversion, indiquer son tag :
+
+```bash
+./setup-vm.sh --version v0.1.1
+```
+
 ## Windows Intel ou AMD
 
-Dans PowerShell :
+Pour installer la dernière release stable dans PowerShell :
 
 ```powershell
 PowerShell -ExecutionPolicy Bypass -File .\setup-vm.ps1
 ```
+
+Pour installer une release précise ou une préversion :
+
+```powershell
+PowerShell -ExecutionPolicy Bypass -File .\setup-vm.ps1 -Version v0.1.1
+```
+
+Une préversion n'est pas sélectionnée automatiquement par le mode par défaut. Il faut donc indiquer explicitement son tag.
 
 ## Hôtes ARM64
 

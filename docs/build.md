@@ -198,29 +198,79 @@ Avant d'annoncer ARM64 comme utilisable :
 
 ## Publication
 
+Les notes de chaque release sont conservées dans `release-notes/`. Le nom par défaut est dérivé de `VERSION` :
+
+```text
+release-notes/v<version>.md
+```
+
+Par exemple, `VERSION=0.1.1` utilise `release-notes/v0.1.1.md`. Ces fichiers sont versionnés dans Git et constituent l'historique des notes publiées. Il n'est pas nécessaire de maintenir un `CHANGELOG.md`.
+
 1. Mettre `VERSION` à jour.
-2. Valider le dépôt :
+2. Créer ou réviser `release-notes/v<version>.md`.
+3. Valider le dépôt :
 
 ```bash
 ./scripts/validate.sh
 ```
 
-3. Construire, importer et tester les architectures annoncées.
-4. Regrouper les quatre assets attendus dans `release/`.
-5. Créer et pousser un tag annoté :
+4. Construire, importer et tester les architectures annoncées.
+5. Regrouper les assets requis dans `release/`.
+6. Commiter les sources et les notes de release.
+7. Créer et pousser un tag annoté :
 
 ```bash
 git tag -a "v$(cat VERSION)" -m "Version $(cat VERSION)"
 git push origin "v$(cat VERSION)"
 ```
 
-6. Après la validation ARM64 complète, publier :
+### Préversion AMD64
+
+Tant qu'ARM64 n'est pas validée, une préversion peut être publiée avec uniquement l'appliance AMD64 et son fichier SHA-256 :
+
+```bash
+./scripts/release.sh --prerelease
+```
+
+Ce mode :
+
+- exige uniquement `log100-network-lab-vm-amd64.ova.gz` et son SHA-256;
+- ne demande pas `LOG100_ARM64_VALIDATED=1`;
+- crée une GitHub Release marquée comme préversion;
+- utilise `--latest=false` afin de ne pas remplacer la dernière release stable;
+- utilise automatiquement `release-notes/v$(cat VERSION).md` comme notes de release.
+
+Le chemin des notes peut être remplacé explicitement :
+
+```bash
+./scripts/release.sh --prerelease --notes release-notes/v0.1.1.md
+```
+
+Un chemin relatif est résolu depuis la racine du dépôt. Un chemin absolu peut également être fourni. Le script refuse la publication si le fichier sélectionné n'existe pas.
+
+Les étudiants ou testeurs qui veulent installer cette préversion doivent sélectionner explicitement son tag :
+
+```bash
+./setup-vm.sh --version v0.1.1
+```
+
+ou, sous Windows :
+
+```powershell
+PowerShell -ExecutionPolicy Bypass -File .\setup-vm.ps1 -Version v0.1.1
+```
+
+### Release stable
+
+Après la validation ARM64 complète, une nouvelle version doit être créée avec son propre fichier `release-notes/v<version>.md`. Les notes historiques de `v0.1.1` ne doivent pas être réécrites pour transformer cette préversion AMD64 en release ARM64.
+
+Lorsque les assets AMD64 et ARM64 de la nouvelle version sont présents :
 
 ```bash
 LOG100_ARM64_VALIDATED=1 ./scripts/release.sh
 ```
 
-Le script refuse une release incomplète, un asset de 2 Gio ou plus, ou une publication sans l'acquittement explicite de la validation ARM64.
+Le mode stable refuse une release incomplète, un asset de 2 Gio ou plus, une publication sans fichier de notes, ou une publication sans l'acquittement explicite de la validation ARM64.
 
 ## Politique de versions
 

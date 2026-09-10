@@ -1,3 +1,8 @@
+param(
+    [Parameter(Position = 0)]
+    [string]$Version = "latest"
+)
+
 $ErrorActionPreference = "Stop"
 
 $Repo = "ets-log100/network-lab-vm"
@@ -8,6 +13,18 @@ $WorkDir = Join-Path $env:TEMP "log100-network-lab-vm"
 function Fail([string]$Message) {
     Write-Error "ERREUR : $Message"
     exit 1
+}
+
+if ($Version -eq "latest") {
+    $BaseUrl = "https://github.com/$Repo/releases/latest/download"
+    $ReleaseLabel = "la dernière release stable"
+} else {
+    if ($Version -notmatch '^[vV]?\d+\.\d+\.\d+$') {
+        Fail "version invalide : $Version. Utilisez un tag comme v0.1.1."
+    }
+    $ReleaseTag = "v" + ($Version -replace '^[vV]', '')
+    $BaseUrl = "https://github.com/$Repo/releases/download/$ReleaseTag"
+    $ReleaseLabel = $ReleaseTag
 }
 
 $VBoxManage = Get-Command VBoxManage.exe -ErrorAction SilentlyContinue
@@ -46,14 +63,21 @@ if ($LASTEXITCODE -eq 0) {
 
 New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null
 $Asset = "log100-network-lab-vm-$Arch.ova.gz"
-$BaseUrl = "https://github.com/$Repo/releases/latest/download"
 $Archive = Join-Path $WorkDir $Asset
 $ChecksumFile = "$Archive.sha256"
 $Ova = Join-Path $WorkDir "log100-network-lab-vm-$Arch.ova"
 
-Write-Host "INFO : téléchargement de l'appliance $Arch"
-Invoke-WebRequest -Uri "$BaseUrl/$Asset" -OutFile $Archive
-Invoke-WebRequest -Uri "$BaseUrl/$Asset.sha256" -OutFile $ChecksumFile
+Write-Host "INFO : téléchargement de l'appliance $Arch depuis $ReleaseLabel"
+try {
+    Invoke-WebRequest -Uri "$BaseUrl/$Asset" -OutFile $Archive
+} catch {
+    Fail "impossible de télécharger $Asset depuis $ReleaseLabel. Vérifiez que cette release contient une appliance pour l'architecture $Arch."
+}
+try {
+    Invoke-WebRequest -Uri "$BaseUrl/$Asset.sha256" -OutFile $ChecksumFile
+} catch {
+    Fail "impossible de télécharger le SHA-256 de $Asset depuis $ReleaseLabel."
+}
 
 $Expected = ((Get-Content $ChecksumFile -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
 $Actual = (Get-FileHash -Algorithm SHA256 $Archive).Hash.ToLowerInvariant()
@@ -99,6 +123,7 @@ if ($LASTEXITCODE -ne 0) { Fail "le démarrage de la VM a échoué." }
 Write-Host ""
 Write-Host "OK : la VM LOG100 est démarrée."
 Write-Host ""
+Write-Host "Release : $ReleaseLabel"
 Write-Host "Connexion :"
 Write-Host "  ssh -p $SshPort log100@localhost"
 Write-Host ""

@@ -86,22 +86,34 @@ Tant que la validation ARM64 décrite plus haut n'est pas terminée, seule la ci
 
 ### Linux x86_64 ou macOS Intel
 
-Télécharger `scripts/setup-vm.sh`, puis :
+Télécharger `scripts/setup-vm.sh`, puis utiliser la dernière release stable :
 
 ```bash
 chmod +x setup-vm.sh
 ./setup-vm.sh
 ```
 
+Pour installer une release précise, y compris une préversion :
+
+```bash
+./setup-vm.sh --version v0.1.1
+```
+
 ### Windows Intel ou AMD
 
-Télécharger `scripts/setup-vm.ps1`, puis :
+Télécharger `scripts/setup-vm.ps1`, puis utiliser la dernière release stable :
 
 ```powershell
 PowerShell -ExecutionPolicy Bypass -File .\setup-vm.ps1
 ```
 
-Les scripts détectent l'architecture du système hôte, téléchargent l'asset correspondant de la dernière release, vérifient son SHA-256, importent la VM, configurent la redirection SSH et démarrent la VM.
+Pour installer une release précise, y compris une préversion :
+
+```powershell
+PowerShell -ExecutionPolicy Bypass -File .\setup-vm.ps1 -Version v0.1.1
+```
+
+Sans version explicite, les scripts téléchargent l'asset correspondant depuis la dernière release stable. Avec une version explicite, ils téléchargent directement les assets du tag demandé. Dans les deux cas, ils détectent l'architecture du système hôte, vérifient le SHA-256, importent la VM, configurent la redirection SSH et démarrent la VM.
 
 Sur un système ARM64, ne pas utiliser une appliance ARM64 avant qu'une release indique explicitement que la validation ARM64 des laboratoires est terminée.
 
@@ -131,13 +143,29 @@ Voir [docs/build.md](docs/build.md).
 
 ## Publication d'une release
 
-La publication stable exige les assets AMD64 et ARM64 ainsi qu'une validation explicite d'ARM64. Après avoir construit, testé et regroupé les quatre assets dans `release/`, créer le tag correspondant à `VERSION`, puis :
+Les notes de release sont conservées dans `release-notes/` et versionnées avec le dépôt. Pour la version courante, le fichier par défaut est `release-notes/v0.1.1.md`.
+
+Une préversion AMD64 peut être publiée avant que l'appliance ARM64 soit prête. Après avoir construit et testé AMD64, placé l'appliance compressée et son SHA-256 dans `release/`, puis créé et poussé le tag correspondant à `VERSION` :
+
+```bash
+./scripts/release.sh --prerelease
+```
+
+Ce mode publie uniquement les assets AMD64, marque la GitHub Release comme préversion, ne la marque pas comme dernière release stable et utilise automatiquement `release-notes/v$(cat VERSION).md`.
+
+Un autre fichier de notes peut être sélectionné explicitement :
+
+```bash
+./scripts/release.sh --prerelease --notes release-notes/v0.1.1.md
+```
+
+La publication stable exige les assets AMD64 et ARM64 ainsi qu'une validation explicite d'ARM64 :
 
 ```bash
 LOG100_ARM64_VALIDATED=1 ./scripts/release.sh
 ```
 
-Ne définir `LOG100_ARM64_VALIDATED=1` qu'après la validation des images OCI multi-architectures et des six laboratoires sur ARM64.
+Ne définir `LOG100_ARM64_VALIDATED=1` qu'après la validation des images OCI multi-architectures et des six laboratoires sur ARM64. Une future version incluant ARM64 doit utiliser une nouvelle version et un nouveau fichier dans `release-notes/`, plutôt que de réécrire les notes historiques de `v0.1.1`.
 
 ## Validation locale du dépôt
 

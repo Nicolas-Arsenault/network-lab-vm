@@ -118,11 +118,52 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("Before=ssh.service", text)
         self.assertNotIn("Before=ssh.service ssh.socket", text)
 
+    def test_setup_scripts_can_select_explicit_release(self):
+        posix = (ROOT / "scripts" / "setup-vm.sh").read_text(encoding="utf-8")
+        powershell = (ROOT / "scripts" / "setup-vm.ps1").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        student = (ROOT / "docs" / "student-setup.md").read_text(encoding="utf-8")
+        self.assertIn("--version", posix)
+        self.assertIn("releases/download/$release_tag", posix)
+        self.assertIn("releases/latest/download", posix)
+        self.assertIn('[string]$Version = "latest"', powershell)
+        self.assertIn("releases/download/$ReleaseTag", powershell)
+        self.assertIn("releases/latest/download", powershell)
+        self.assertIn("./setup-vm.sh --version v0.1.1", readme)
+        self.assertIn("-Version v0.1.1", readme)
+        self.assertIn("./setup-vm.sh --version v0.1.1", student)
+        self.assertIn("-Version v0.1.1", student)
+
+    def test_prerelease_mode_is_amd64_only(self):
+        release = (ROOT / "scripts" / "release.sh").read_text(encoding="utf-8")
+        build_doc = (ROOT / "docs" / "build.md").read_text(encoding="utf-8")
+        self.assertIn("--prerelease", release)
+        self.assertIn("architectures=(amd64)", release)
+        self.assertIn("architectures=(amd64 arm64)", release)
+        self.assertIn("--latest=false", release)
+        self.assertIn("release_args+=(--prerelease --latest=false)", release)
+        self.assertIn("./scripts/release.sh --prerelease", build_doc)
+
+    def test_release_notes_are_versioned_and_configurable(self):
+        release = (ROOT / "scripts" / "release.sh").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        build_doc = (ROOT / "docs" / "build.md").read_text(encoding="utf-8")
+        notes = ROOT / "release-notes" / "v0.1.1.md"
+        self.assertTrue(notes.is_file())
+        self.assertIn('notes_file="$root/release-notes/$tag.md"', release)
+        self.assertIn("--notes", release)
+        self.assertIn('--notes-file "$notes_file"', release)
+        self.assertNotIn("mktemp", release)
+        self.assertIn("release-notes/v0.1.1.md", readme)
+        self.assertIn("release-notes/v<version>.md", build_doc)
+        self.assertFalse((ROOT / "CHANGELOG.md").exists())
+
     def test_arm64_release_requires_explicit_validation(self):
         release = (ROOT / "scripts" / "release.sh").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         support = (ROOT / "docs" / "support.md").read_text(encoding="utf-8")
         self.assertIn("LOG100_ARM64_VALIDATED", release)
+        self.assertIn('[[ "$prerelease" == false', release)
         self.assertIn("ne doit pas encore être annoncée", readme)
         self.assertIn("ne doit pas encore être présentée", support)
 

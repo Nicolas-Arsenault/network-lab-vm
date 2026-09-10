@@ -5,8 +5,56 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 version=$(tr -d '[:space:]' < "$root/VERSION")
 tag="v$version"
 release_dir="$root/release"
+prerelease=false
+notes_file="$root/release-notes/$tag.md"
 
-if [[ "${LOG100_ARM64_VALIDATED:-}" != "1" ]]; then
+usage() {
+  cat <<'USAGE'
+Usage : release.sh [--prerelease] [--notes <chemin>]
+
+Options :
+  --prerelease       Publier une préversion AMD64 seulement.
+                     ARM64 n'est pas exigée et la release n'est pas marquée comme latest.
+  --notes <chemin>   Utiliser ce fichier Markdown comme notes de release.
+                     Par défaut : release-notes/v<version>.md.
+  -h, --help         Afficher cette aide.
+
+Sans --prerelease, la publication stable exige AMD64 et ARM64 ainsi que
+LOG100_ARM64_VALIDATED=1.
+USAGE
+}
+
+while (( $# > 0 )); do
+  case "$1" in
+    --prerelease)
+      prerelease=true
+      shift
+      ;;
+    --notes)
+      if (( $# < 2 )); then
+        echo "ERREUR : --notes exige un chemin de fichier." >&2
+        exit 1
+      fi
+      if [[ "$2" = /* ]]; then
+        notes_file="$2"
+      else
+        notes_file="$root/$2"
+      fi
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "ERREUR : option inconnue : $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ "$prerelease" == false && "${LOG100_ARM64_VALIDATED:-}" != "1" ]]; then
   echo "ERREUR : définissez LOG100_ARM64_VALIDATED=1 uniquement après la validation ARM64 complète des images OCI et des six laboratoires." >&2
   exit 1
 fi
@@ -26,8 +74,14 @@ if ! git -C "$root" rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
   exit 1
 fi
 
+if [[ "$prerelease" == true ]]; then
+  architectures=(amd64)
+else
+  architectures=(amd64 arm64)
+fi
+
 assets=()
-for arch in amd64 arm64; do
+for arch in "${architectures[@]}"; do
   asset="$release_dir/log100-network-lab-vm-$arch.ova.gz"
   checksum="$asset.sha256"
   for file in "$asset" "$checksum"; do
@@ -49,27 +103,33 @@ if gh release view "$tag" >/dev/null 2>&1; then
   exit 1
 fi
 
-notes=$(mktemp)
-trap 'rm -f "$notes"' EXIT
-cat > "$notes" <<EOF
-Machine virtuelle LOG100 $version pour VirtualBox.
+if [[ ! -f "$notes_file" ]]; then
+  echo "ERREUR : fichier de notes de release absent : $notes_file" >&2
+  exit 1
+fi
 
-Assets :
-- AMD64 : Windows 10/11 Intel/AMD, Ubuntu x86_64 et macOS Intel;
-- ARM64 : macOS Apple Silicon; Windows 11 ARM en meilleur effort.
+if [[ "$prerelease" == true ]]; then
+  title="network-lab-vm $version - préversion AMD64"
+else
+  title="network-lab-vm $version"
+fi
 
-Connexion SSH après installation :
-
-\`\`\`text
-ssh -p 2222 log100@localhost
-\`\`\`
-
-Mot de passe initial : \`log100\`.
-EOF
-
-gh release create "$tag" "${assets[@]}" \
-  --title "network-lab-vm $version" \
-  --notes-file "$notes" \
+release_args=(
+  "$tag"
+  "${assets[@]}"
+  --title "$title"
+  --notes-file "$notes_file"
   --verify-tag
+)
 
-echo "OK : release $tag publiée."
+if [[ "$prerelease" == true ]]; then
+  release_args+=(--prerelease --latest=false)
+fi
+
+gh release create "${release_args[@]}"
+
+if [[ "$prerelease" == true ]]; then
+  echo "OK : préversion AMD64 $tag publiée."
+else
+  echo "OK : release stable $tag publiée."
+fi
