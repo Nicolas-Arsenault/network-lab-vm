@@ -1,10 +1,10 @@
 source "virtualbox-iso" "ubuntu" {
   vm_name         = "log100-network-lab-vm-${var.arch}"
+  guest_os_type    = "Ubuntu_64"
   output_filename = "log100-network-lab-vm-${var.arch}"
   output_directory = "output-${var.arch}"
 
   chipset            = var.chipset
-  firmware           = "efi"
   iso_interface      = "sata"
   hard_drive_interface = "sata"
   nic_type           = var.nic_type
@@ -22,7 +22,8 @@ source "virtualbox-iso" "ubuntu" {
   iso_checksum = var.iso_checksum
 
   vboxmanage = [
-    ["modifyvm", "{{.Name}}", "--boot1", "dvd", "--boot2", "disk", "--boot3", "none", "--boot4", "none"]
+    ["modifyvm", "{{.Name}}", "--boot1", "dvd", "--boot2", "disk", "--boot3", "none", "--boot4", "none"],
+    ["modifyvm", "{{.Name}}", "--firmware", "efi"]
   ]
 
   http_directory = "${path.root}/http"
