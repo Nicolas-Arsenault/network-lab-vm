@@ -1,6 +1,11 @@
 #cloud-config
 autoinstall:
   version: 1
+  refresh-installer:
+    update: false
+  source:
+    id: ubuntu-server-minimal
+    search_drivers: false
   locale: en_US.UTF-8
   keyboard:
     layout: us

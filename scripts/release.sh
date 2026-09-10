@@ -6,6 +6,11 @@ version=$(tr -d '[:space:]' < "$root/VERSION")
 tag="v$version"
 release_dir="$root/release"
 
+if [[ "${LOG100_ARM64_VALIDATED:-}" != "1" ]]; then
+  echo "ERREUR : définissez LOG100_ARM64_VALIDATED=1 uniquement après la validation ARM64 complète des images OCI et des six laboratoires." >&2
+  exit 1
+fi
+
 if ! command -v gh >/dev/null 2>&1; then
   echo "ERREUR : GitHub CLI (gh) est requis pour publier la release." >&2
   exit 1

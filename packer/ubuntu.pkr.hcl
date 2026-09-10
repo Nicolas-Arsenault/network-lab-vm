@@ -1,15 +1,18 @@
 source "virtualbox-iso" "ubuntu" {
-  vm_name         = "log100-network-lab-vm-${var.arch}"
-  guest_os_type    = "Ubuntu_64"
-  output_filename = "log100-network-lab-vm-${var.arch}"
+  vm_name          = "log100-network-lab-vm-${var.arch}"
+  guest_os_type    = var.guest_os_type
+  output_filename  = "log100-network-lab-vm-${var.arch}"
   output_directory = "output-${var.arch}"
 
-  chipset            = var.chipset
-  iso_interface      = "sata"
-  hard_drive_interface = "sata"
-  nic_type           = var.nic_type
-  gfx_controller     = "vmsvga"
-  guest_additions_mode = "disable"
+  chipset                  = var.chipset
+  iso_interface            = "sata"
+  hard_drive_interface     = "sata"
+  hard_drive_discard       = true
+  hard_drive_nonrotational = true
+  sata_port_count           = 2
+  nic_type                 = var.nic_type
+  gfx_controller           = "vmsvga"
+  guest_additions_mode     = "disable"
 
   cpus      = 2
   memory    = 4096
@@ -26,23 +29,24 @@ source "virtualbox-iso" "ubuntu" {
     ["modifyvm", "{{.Name}}", "--firmware", "efi"]
   ]
 
-  http_directory = "${path.root}/http"
+  http_directory        = "${path.root}/http"
+  http_bind_address     = "0.0.0.0"
+  http_network_protocol = "tcp4"
 
-  boot_wait              = "15s"
+  boot_wait              = "20s"
   boot_keygroup_interval = "200ms"
   boot_command = [
-    "<esc><wait>",
-    "c<wait>",
-    "set gfxpayload=keep<enter><wait>",
-    "linux /casper/vmlinuz autoinstall quiet ds=\"nocloud-net;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/\" ---<enter><wait>",
-    "initrd /casper/initrd<enter><wait>",
+    "c<wait2>",
+    "set gfxpayload=keep<enter><wait2>",
+    "linux /casper/vmlinuz autoinstall ds=\"nocloud-net;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/\" ---<enter><wait2>",
+    "initrd /casper/initrd<enter><wait2>",
     "boot<enter>"
   ]
 
-  communicator = "ssh"
-  ssh_username = "packer"
-  ssh_password = "packer"
-  ssh_timeout  = "45m"
+  communicator  = "ssh"
+  ssh_username  = "packer"
+  ssh_password  = "packer"
+  ssh_timeout   = "45m"
   host_port_min = 2223
   host_port_max = 2299
 
@@ -68,6 +72,11 @@ build {
 
   provisioner "shell" {
     script          = "${path.root}/scripts/provision.sh"
+    execute_command = "echo 'packer' | sudo -S -E bash '{{ .Path }}'"
+  }
+
+  provisioner "shell" {
+    script          = "${path.root}/scripts/cleanup.sh"
     execute_command = "echo 'packer' | sudo -S -E bash '{{ .Path }}'"
   }
 }

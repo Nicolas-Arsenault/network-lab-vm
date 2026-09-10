@@ -4,26 +4,56 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update
-apt-get install -y \
+
+# Éviter toute question interactive de wireshark-common pendant l'installation
+# de tshark. Les captures privilégiées restent désactivées par défaut.
+printf '%s\n' 'wireshark-common wireshark-common/install-setuid boolean false' | debconf-set-selections
+
+apt-get install -y --no-install-recommends \
+  aardvark-dns \
   ca-certificates \
+  catatonit \
   curl \
+  dbus-user-session \
   dnsutils \
   fuse-overlayfs \
   git \
+  gzip \
   iproute2 \
+  iptables \
   iputils-ping \
   jq \
   less \
+  lsof \
+  nano \
+  netavark \
   netcat-openbsd \
+  nftables \
   openssh-server \
   passt \
   podman \
+  procps \
+  psmisc \
+  python3 \
+  python3-pip \
+  python3-requests \
+  python3-venv \
+  python3-yaml \
   slirp4netns \
+  socat \
+  tar \
   tcpdump \
   traceroute \
+  tshark \
   uidmap \
   unzip \
-  vim-tiny
+  vim-tiny \
+  xz-utils \
+  zip \
+  zstd
+
+# Conserver explicitement la pile réseau Podman pendant le nettoyage final.
+apt-mark manual podman netavark aardvark-dns passt slirp4netns fuse-overlayfs uidmap iptables nftables >/dev/null
 
 if ! id log100 >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash --groups sudo log100
@@ -39,14 +69,23 @@ if ! grep -q '^log100:' /etc/subgid; then
 fi
 
 install -d -m 0755 /etc/ssh/sshd_config.d
-cat > /etc/ssh/sshd_config.d/60-log100.conf <<'EOF'
+rm -f /etc/ssh/sshd_config.d/60-log100.conf
+cat > /etc/ssh/sshd_config.d/10-log100.conf <<'EOF'
 PermitRootLogin no
 PasswordAuthentication yes
+PubkeyAuthentication yes
 KbdInteractiveAuthentication no
 AllowUsers log100 packer
 EOF
 
-systemctl enable ssh
+# Ubuntu 24.04 active OpenSSH par socket par défaut. Pour cette appliance,
+# utiliser le service classique afin que SSH soit disponible dès le démarrage.
+systemctl disable ssh.socket || true
+install -d -m 0755 /etc/systemd/system-generators
+ln -sf /dev/null /etc/systemd/system-generators/sshd-socket-generator
+systemctl daemon-reload
+systemctl unmask ssh.service || true
+systemctl enable ssh.service
 
 cat > /etc/sysctl.d/60-log100-rootless.conf <<'EOF'
 kernel.apparmor_restrict_unprivileged_userns=0
@@ -95,7 +134,7 @@ chmod 0755 /usr/local/sbin/log100-first-boot
 cat > /etc/systemd/system/log100-first-boot.service <<'EOF'
 [Unit]
 Description=Initialiser la VM LOG100 après importation
-After=network.target
+After=local-fs.target
 Before=ssh.service
 ConditionPathExists=/var/lib/log100/first-boot.pending
 
@@ -112,15 +151,46 @@ systemctl enable log100-first-boot.service
 cat > /usr/local/sbin/log100-finalize-build <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
 passwd -l packer || true
-rm -rf /home/packer/.ssh
-apt-get clean
-rm -rf /var/lib/apt/lists/*
+usermod --shell /usr/sbin/nologin packer || true
+rm -rf /home/packer/.ssh /home/packer/.cache
+rm -f /etc/ssh/ssh_host_*
+rm -f /var/lib/systemd/random-seed
+truncate -s 0 /etc/machine-id
+if [[ -e /var/lib/dbus/machine-id || -L /var/lib/dbus/machine-id ]]; then
+  rm -f /var/lib/dbus/machine-id
+  ln -s /etc/machine-id /var/lib/dbus/machine-id
+fi
+
+if [[ -x /usr/local/sbin/log100-cleanup-build ]]; then
+  /usr/local/sbin/log100-cleanup-build --final
+fi
+
 sync
 shutdown -P now
 EOF
 chmod 0755 /usr/local/sbin/log100-finalize-build
 
+test -x /usr/lib/podman/netavark
+test -x /usr/lib/podman/aardvark-dns
+command -v iptables >/dev/null
+command -v nft >/dev/null
+command -v pasta >/dev/null
+command -v slirp4netns >/dev/null
+command -v fuse-overlayfs >/dev/null
+command -v tshark >/dev/null
+/usr/lib/podman/netavark --version
+iptables --version
+nft --version
 podman --version
 git --version
+python3 --version
+tshark --version >/dev/null
+vi --version >/dev/null
 sshd -t
+systemctl is-enabled --quiet ssh.service
+if systemctl is-enabled --quiet ssh.socket; then
+  echo "ERREUR : ssh.socket ne doit pas être activé dans l'appliance finale." >&2
+  exit 1
+fi

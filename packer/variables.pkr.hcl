@@ -17,6 +17,10 @@ variable "arch" {
   }
 }
 
+variable "guest_os_type" {
+  type = string
+}
+
 variable "chipset" {
   type = string
 }
