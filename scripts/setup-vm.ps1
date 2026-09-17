@@ -17,7 +17,7 @@ function Fail([string]$Message) {
 
 if ($Version -eq "latest") {
     $BaseUrl = "https://github.com/$Repo/releases/latest/download"
-    $ReleaseLabel = "la derniÃ¨re release stable"
+    $ReleaseLabel = "la dernière release stable"
 } else {
     if ($Version -notmatch '^[vV]?\d+\.\d+\.\d+$') {
         Fail "version invalide : $Version. Utilisez un tag comme v0.1.1."
@@ -33,7 +33,7 @@ if (-not $VBoxManage) {
     if (Test-Path $Candidate) {
         $VBoxManagePath = $Candidate
     } else {
-        Fail "VirtualBox n'est pas installÃ© ou VBoxManage.exe est introuvable."
+        Fail "VirtualBox n'est pas installé ou VBoxManage.exe est introuvable."
     }
 } else {
     $VBoxManagePath = $VBoxManage.Source
@@ -43,17 +43,17 @@ $Architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitect
 switch ($Architecture) {
     "X64"   { $Arch = "amd64" }
     "Arm64" { $Arch = "arm64" }
-    default { Fail "architecture non supportÃ©e : $Architecture" }
+    default { Fail "architecture non supportée : $Architecture" }
 }
 
 $VersionText = (& $VBoxManagePath --version)
 if ($VersionText -notmatch '^(\d+)\.(\d+)') {
-    Fail "impossible de dÃ©terminer la version de VirtualBox."
+    Fail "impossible de déterminer la version de VirtualBox."
 }
 $Major = [int]$Matches[1]
 $Minor = [int]$Matches[2]
 if ($Major -lt 7 -or ($Major -eq 7 -and $Minor -lt 2)) {
-    Fail "VirtualBox 7.2 ou plus rÃ©cent est requis. Version dÃ©tectÃ©e : $VersionText"
+    Fail "VirtualBox 7.2 ou plus récent est requis. Version détectée : $VersionText"
 }
 
 $vmExists = $false
@@ -79,16 +79,16 @@ $Archive = Join-Path $WorkDir $Asset
 $ChecksumFile = "$Archive.sha256"
 $Ova = Join-Path $WorkDir "log100-network-lab-vm-$Arch.ova"
 
-Write-Host "INFO : tÃ©lÃ©chargement de l'appliance $Arch depuis $ReleaseLabel"
+Write-Host "INFO : téléchargement de l'appliance $Arch depuis $ReleaseLabel"
 try {
     Invoke-WebRequest -Uri "$BaseUrl/$Asset" -OutFile $Archive
 } catch {
-    Fail "impossible de tÃ©lÃ©charger $Asset depuis $ReleaseLabel. VÃ©rifiez que cette release contient une appliance pour l'architecture $Arch."
+    Fail "impossible de télécharger $Asset depuis $ReleaseLabel. Vérifiez que cette release contient une appliance pour l'architecture $Arch."
 }
 try {
     Invoke-WebRequest -Uri "$BaseUrl/$Asset.sha256" -OutFile $ChecksumFile
 } catch {
-    Fail "impossible de tÃ©lÃ©charger le SHA-256 de $Asset depuis $ReleaseLabel."
+    Fail "impossible de télécharger le SHA-256 de $Asset depuis $ReleaseLabel."
 }
 
 $Expected = ((Get-Content $ChecksumFile -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
@@ -97,7 +97,7 @@ if ($Expected -ne $Actual) {
     Fail "le SHA-256 de l'appliance est invalide."
 }
 
-Write-Host "INFO : dÃ©compression"
+Write-Host "INFO : décompression"
 $InputStream = [System.IO.File]::OpenRead($Archive)
 try {
     $GzipStream = New-Object System.IO.Compression.GzipStream($InputStream, [System.IO.Compression.CompressionMode]::Decompress)
@@ -127,12 +127,12 @@ try {
 }
 
 if ($LASTEXITCODE -ne 0) { 
-    Fail "l'importation de la VM a Ã©chouÃ©." 
+    Fail "l'importation de la VM a échoué." 
 }
 
 & $VBoxManagePath modifyvm $VmName --nat-pf1 delete ssh *> $null
 & $VBoxManagePath modifyvm $VmName --nat-pf1 "ssh,tcp,127.0.0.1,$SshPort,,22"
-if ($LASTEXITCODE -ne 0) { Fail "la configuration de la redirection SSH a Ã©chouÃ©." }
+if ($LASTEXITCODE -ne 0) { Fail "la configuration de la redirection SSH a échoué." }
 
 $SshKeygen = Get-Command ssh-keygen.exe -ErrorAction SilentlyContinue
 if ($SshKeygen) {
@@ -145,16 +145,16 @@ if ($SshKeygen) {
     }
 }
 
-Write-Host "INFO : dÃ©marrage de la VM"
+Write-Host "INFO : démarrage de la VM"
 & $VBoxManagePath startvm $VmName --type headless
-if ($LASTEXITCODE -ne 0) { Fail "le dÃ©marrage de la VM a Ã©chouÃ©." }
+if ($LASTEXITCODE -ne 0) { Fail "le démarrage de la VM a échoué." }
 
 Write-Host ""
-Write-Host "OK : la VM LOG100 est dÃ©marrÃ©e."
+Write-Host "OK : la VM LOG100 est démarrée."
 Write-Host ""
 Write-Host "Release : $ReleaseLabel"
 Write-Host "Connexion :"
 Write-Host "  ssh -p $SshPort log100@localhost"
 Write-Host ""
 Write-Host "Mot de passe initial : log100"
-Write-Host "La premiÃ¨re disponibilitÃ© de SSH peut prendre quelques dizaines de secondes."
+Write-Host "La première disponibilité de SSH peut prendre quelques dizaines de secondes."
